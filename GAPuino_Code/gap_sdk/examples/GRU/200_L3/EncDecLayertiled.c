@@ -1,0 +1,784 @@
+#include "EncDecLayer.h"
+L1_CL_MEM AT_L1_POINTER L1_Memory;
+L2_MEM AT_L2_POINTER L2_Memory;
+//AT_HYPERRAM_POINTER L3_Memory;
+//static AT_HYPERRAM_T HyperRam;
+void EncGRUlayer(
+		struct pi_device HyperRam,
+		short int * __restrict__ In,
+		unsigned int Iterazione,
+		short int * __restrict__ H_0,
+		short int * __restrict__ Kernel,
+		uint32_t Rec_Kernel,
+		int * __restrict__ Bias,
+		short int * __restrict__ Kernel2,
+		uint32_t Rec_Kernel2,
+		int * __restrict__ Bias2,
+		short int * __restrict__ Z,
+		short int * __restrict__ prod1,
+		int * __restrict__ prod2,
+		unsigned int Norm)
+
+{
+	/* Shared L1: 43612 bytes, L2 buffer: 28000 bytes */
+	/* Local variables used by this kernel */
+	AT_L2_EVENT DmaR_Evt1;
+	AT_L2_EVENT DmaR_Evt2;
+	AT_L2_EVENT DmaR_Evt3;
+	AT_L2_EVENT DmaR_Evt4;
+	AT_L2_EVENT DmaR_Evt5;
+	AT_L2_EVENT DmaR_Evt6;
+	AT_L2_EVENT DmaR_Evt7;
+	AT_L2_EVENT DmaR_Evt8;
+	AT_L2_EVENT DmaW_Evt1;
+	AT_L2_EVENT DmaW_Evt2;
+	AT_L2_EVENT DmaW_Evt3;
+	AT_L2_EVENT DmaW_Evt4;
+	AT_HYPERRAM_CL_EVENT Uchan1;
+	AT_HYPERRAM_CL_EVENT Uchan2;
+	KerZEnc16_ArgT S_KerArg0, *KerArg0 = &S_KerArg0;
+	KerProd16_ArgT S_KerArg1, *KerArg1 = &S_KerArg1;
+	KerGRUEnclayer16_ArgT S_KerArg2, *KerArg2 = &S_KerArg2;
+
+	/* Iteration space related variables */
+	int T2Ind, T2Ind_Total=0, T2Ind_Last, T2Ind_NextLast;
+	int T1Ind, T1Ind_Total=0, T1Ind_Last, T1Ind_NextLast, T1Ind_NextNextLast;
+	int T0Ind, T0Ind_Total=0, T0Ind_Last, T0Ind_NextLast, T0Ind_NextNextLast;
+	/* User kernel arguments related variables */
+	unsigned int _C_Z;
+	unsigned int _SP_Z, _SC_Z;
+	unsigned int _C_H_0, _N_H_0;
+	unsigned int _SP_H_0, _SC_H_0, _SN_H_0;
+	unsigned int _N_Kernel;
+	unsigned int _SN_Kernel;
+	unsigned int _NN_Rec_Kernel;
+	unsigned int _SN_Rec_Kernel, _SNN_Rec_Kernel;
+	unsigned int _LN_Rec_Kernel, _LNN_Rec_Kernel;
+	unsigned int _N_Bias;
+	unsigned int _SN_Bias;
+	unsigned int _N_Kernel2;
+	unsigned int _SN_Kernel2;
+	unsigned int _NN_Rec_Kernel2;
+	unsigned int _SN_Rec_Kernel2, _SNN_Rec_Kernel2;
+	unsigned int _LN_Rec_Kernel2, _LNN_Rec_Kernel2;
+	unsigned int _N_Bias2;
+	unsigned int _SN_Bias2;
+	unsigned int _N_In;
+	unsigned int _SN_In;
+	unsigned int _C_prod1;
+	unsigned int _SP_prod1, _SC_prod1;
+	unsigned int _C_prod2;
+	unsigned int _SP_prod2, _SC_prod2;
+	/*============================= Ker Arg Iter Spaces =========================================
+	User Kernel Iteration Space:
+		[Tile2 Dim: 1][Tile1 Dim: 18][Tile0 Dim: 36]
+	Ker Arg: Z, Tiled Space: Tile2
+		Min Pipe Depth: -1, Max Pipe Depth: 0
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 1000 [Tile2, 1:[500x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[500x1], 2]
+		Tile0: [0, 1000, 1000], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: H_0, Tiled Space: Tile2
+		Min Pipe Depth: -1, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 500 [Tile2, 1:[250x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 2]
+		Tile0: [0, 500, 500], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: Kernel, Tiled Space: Tile2
+		Min Pipe Depth: 0, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 1000 [Tile2, 1:[500x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[500x1], 2]
+		Tile0: [0, 1000, 1000], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: Rec_Kernel, Tiled Space: Tile0
+		Min Pipe Depth: 0, Max Pipe Depth: 2
+		KerArgItSpace: 36 logical tiles, 36 physical tiles
+			Total Size: 250000 [Tile0, 36:[250x14, 34:250x14, 250x10], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile0, 36:[250x14, 34:250x14, 250x10], 2]
+		Tile0: [0, 7000, 28], Tile1: [28, 7000, 28], Tile2; [56, 7000, 28]
+		T0: [Tile0: 0], T1: [Tile0: 1], T2: [Tile0: 2]
+	Ker Arg: Bias, Tiled Space: Tile2
+		Min Pipe Depth: 0, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 2000 [Tile2, 1:[500x1], 4]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[500x1], 4]
+		Tile0: [0, 2000, 2000], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: Kernel2, Tiled Space: Tile2
+		Min Pipe Depth: 0, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 500 [Tile2, 1:[250x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 2]
+		Tile0: [0, 500, 500], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: Rec_Kernel2, Tiled Space: Tile1
+		Min Pipe Depth: 0, Max Pipe Depth: 2
+		KerArgItSpace: 18 logical tiles, 18 physical tiles
+			Total Size: 125000 [Tile1, 18:[250x14, 16:250x14, 250x12], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile1, 18:[250x14, 16:250x14, 250x12], 2]
+		Tile0: [0, 7000, 28], Tile1: [28, 7000, 28], Tile2; [56, 7000, 28]
+		T0: [Tile1: 0], T1: [Tile1: 1], T2: [Tile1: 2]
+	Ker Arg: Bias2, Tiled Space: Tile2
+		Min Pipe Depth: 0, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 1000 [Tile2, 1:[250x1], 4]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 4]
+		Tile0: [0, 1000, 1000], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: In, Tiled Space: Tile2
+		Min Pipe Depth: 0, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 54 [Tile2, 1:[27x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[27x1], 2]
+		Tile0: [0, 54, 54], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: prod1, Tiled Space: Tile2
+		Min Pipe Depth: -1, Max Pipe Depth: 0
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 500 [Tile2, 1:[250x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 2]
+		Tile0: [0, 500, 500], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: prod2, Tiled Space: Tile2
+		Min Pipe Depth: -1, Max Pipe Depth: 0
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 1000 [Tile2, 1:[250x1], 4]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 4]
+		Tile0: [0, 1000, 1000], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	======================== End Ker Arg Iter Spaces =========================================*/
+	/*=========================== Call Kernel, Invariant assignment =====================*/
+	
+	KerArg0->W_H = (unsigned int) (250);
+	KerArg0->Norm = (unsigned int) (Norm);
+	KerArg1->W_H = (unsigned int) (250);
+	KerArg1->Norm = (unsigned int) (Norm);
+	KerArg2->W_H = (unsigned int) (250);
+	KerArg2->Norm = (unsigned int) (Norm);
+	/*================================= Read Tiles Prolog ===============================*/
+	_C_Z=0; _SC_Z=1000;
+	_SP_Z=0;
+	_C_H_0=0; _SC_H_0=500;
+	_SP_H_0=0;
+	_N_H_0=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) H_0+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+112+0), 500, 0, &DmaR_Evt1);
+	_N_Kernel=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Kernel+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+1612+0), 1000, 0, &DmaR_Evt2);
+	_NN_Rec_Kernel=28; _SN_Rec_Kernel=7000;
+	AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel+0), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+0+0), 7000, 1000, 28, 0, &Uchan1);
+	AT_HYPERRAM_CL_WAIT(&HyperRam, &Uchan1); /* Wait previous uDMA read Rec_Kernel */
+	AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel+28), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+0+7000), 7000, 1000, 28, 0, &Uchan1);
+	AT_L2_COPY(0, ((AT_HYPERRAM_EXT_ADDR_TYPE) L2_Memory+0+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+29612+0), 7000, 0, &DmaR_Evt3);
+	_N_Bias=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Bias+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+3612+0), 2000, 0, &DmaR_Evt4);
+	_N_Kernel2=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Kernel2+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+7612+0), 500, 0, &DmaR_Evt5);
+	_NN_Rec_Kernel2=28; _SN_Rec_Kernel2=7000;
+	AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel2+0), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+14000+0), 7000, 500, 28, 0, &Uchan2);
+	AT_HYPERRAM_CL_WAIT(&HyperRam, &Uchan2); /* Wait previous uDMA read Rec_Kernel2 */
+	AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel2+28), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+14000+7000), 7000, 500, 28, 0, &Uchan2);
+	AT_L2_COPY(0, ((AT_HYPERRAM_EXT_ADDR_TYPE) L2_Memory+14000+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+15612+0), 7000, 0, &DmaR_Evt6);
+	_N_Bias2=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Bias2+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+8612+0), 1000, 0, &DmaR_Evt7);
+	_N_In=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) In+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+0+0), 54, 0, &DmaR_Evt8);
+	_C_prod1=0; _SC_prod1=500;
+	_SP_prod1=0;
+	_C_prod2=0; _SC_prod2=1000;
+	_SP_prod2=0;
+	/*============================= End Read Tiles Prolog ===============================*/
+	{ /* Single iteration on Tile2 */
+		int T2Ind_Last = 1, T2Ind_NextLast = 1;
+		/*================================= Prepare Tiles ===================================*/
+		_SN_H_0 = 0;
+		
+		_SN_Kernel = 0;
+		
+		_SN_Bias = 0;
+		
+		_SN_Kernel2 = 0;
+		
+		_SN_Bias2 = 0;
+		
+		_SN_In = 0;
+		
+		/*============================= End Prepare Tiles ===================================*/
+		/*================================= Read Tiles ======================================*/
+		AT_L2_WAIT(0, &DmaR_Evt1); /* Wait previous DMA read H_0 */
+		if (_SN_H_0) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) H_0+_N_H_0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+112+500*((T2Ind_Total+1)%3)),
+					_SN_H_0, 0, &DmaR_Evt1);
+		}
+		AT_L2_WAIT(0, &DmaR_Evt2); /* Wait previous DMA read Kernel */
+		if (_SN_Kernel) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Kernel+_N_Kernel), ((AT_L2_INT_ADDR_TYPE) L1_Memory+1612+1000*((T2Ind_Total+1)%2)),
+					_SN_Kernel, 0, &DmaR_Evt2);
+		}
+		AT_L2_WAIT(0, &DmaR_Evt4); /* Wait previous DMA read Bias */
+		if (_SN_Bias) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Bias+_N_Bias), ((AT_L2_INT_ADDR_TYPE) L1_Memory+3612+2000*((T2Ind_Total+1)%2)),
+					_SN_Bias, 0, &DmaR_Evt4);
+		}
+		AT_L2_WAIT(0, &DmaR_Evt5); /* Wait previous DMA read Kernel2 */
+		if (_SN_Kernel2) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Kernel2+_N_Kernel2), ((AT_L2_INT_ADDR_TYPE) L1_Memory+7612+500*((T2Ind_Total+1)%2)),
+					_SN_Kernel2, 0, &DmaR_Evt5);
+		}
+		AT_L2_WAIT(0, &DmaR_Evt7); /* Wait previous DMA read Bias2 */
+		if (_SN_Bias2) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Bias2+_N_Bias2), ((AT_L2_INT_ADDR_TYPE) L1_Memory+8612+1000*((T2Ind_Total+1)%2)),
+					_SN_Bias2, 0, &DmaR_Evt7);
+		}
+		AT_L2_WAIT(0, &DmaR_Evt8); /* Wait previous DMA read In */
+		if (_SN_In) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) In+_N_In), ((AT_L2_INT_ADDR_TYPE) L1_Memory+0+56*((T2Ind_Total+1)%2)),
+					_SN_In, 0, &DmaR_Evt8);
+		}
+		/*============================= End Read Tiles ======================================*/
+
+			/*============================= End Read Tiles ======================================*/
+		for(Iterazione=0;Iterazione<27;Iterazione++){	
+			for (T0Ind=0; T0Ind<36; T0Ind++, T0Ind_Total++) { /* Iteration on Tile0 */
+				int T0Ind_Last = (T0Ind==35), T0Ind_NextLast = ((T0Ind+1)==35), T0Ind_NextNextLast = ((T0Ind+2)==35);
+				/*================================= Prepare Tiles ===================================*/
+				_SNN_Rec_Kernel = 0;
+				if (!(T0Ind_Last)) {
+					if (!(T0Ind_NextLast)) {
+						_NN_Rec_Kernel = _NN_Rec_Kernel + (28); _LNN_Rec_Kernel = ((T0Ind_NextNextLast)?20:28); _SNN_Rec_Kernel = (250*_LNN_Rec_Kernel); 
+					} else {
+						_NN_Rec_Kernel = _NN_Rec_Kernel + (-980); _LNN_Rec_Kernel = (28); _SNN_Rec_Kernel = (250*_LNN_Rec_Kernel); 
+					}
+				} else {
+					_NN_Rec_Kernel = _NN_Rec_Kernel + (28); _LNN_Rec_Kernel = (28); _SNN_Rec_Kernel = (250*_LNN_Rec_Kernel); 
+				}
+				/*============================= End Prepare Tiles ===================================*/
+				/*================================= Read Tiles ======================================*/
+				AT_HYPERRAM_CL_WAIT(&HyperRam, &Uchan1); /* Wait previous uDMA read Rec_Kernel */
+				if (_SNN_Rec_Kernel) {
+					AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel+_NN_Rec_Kernel), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+0+7000*((T0Ind_Total)%2)),
+							_SNN_Rec_Kernel, 1000, _LNN_Rec_Kernel, 0, &Uchan1);
+				}
+				AT_L2_WAIT(0, &DmaR_Evt3); /* Wait previous DMA read Rec_Kernel */
+				if (_SN_Rec_Kernel) {
+					AT_L2_COPY(0, ((AT_HYPERRAM_EXT_ADDR_TYPE) L2_Memory+0+7000*((T0Ind_Total+1)%2)), ((AT_L2_INT_ADDR_TYPE) L1_Memory+29612+7000*((T0Ind_Total+1)%2)),
+							_SN_Rec_Kernel, 0, &DmaR_Evt3);
+				}
+				/*============================= End Read Tiles ======================================*/
+				/*====================== Call Kernel LOC_LOOP =========================*/
+				KerArg0->In = (short int * __restrict__) (L1_Memory+0+56*((T2Ind_Total)%2));
+				KerArg0->Iterazione = (unsigned int) (Iterazione);
+				KerArg0->H_0 = (short int * __restrict__) (L1_Memory+112+500*((T2Ind_Total)%3));
+				KerArg0->Kernel = (short int * __restrict__) (L1_Memory+1612+1000*((T2Ind_Total)%2));
+				KerArg0->Rec_Kernel = (short int * __restrict__) (L1_Memory+29612+7000*((T0Ind_Total)%2));
+				KerArg0->W_Rec_Kernel = (unsigned int) ((T0Ind_Last)?10:14);
+				KerArg0->Bias = (int * __restrict__) (L1_Memory+3612+2000*((T2Ind_Total)%2));
+				KerArg0->Z = (short int * __restrict__) (L1_Memory+10612+1000*((T2Ind_Total)%2));
+				KerArg0->OutFirstCol = (unsigned int) ((T0Ind)*14);
+				AT_FORK(gap_ncore(), (void *) KerZEnc16, (void *) KerArg0);
+				__CALL(KerZEnc16, KerArg0);
+				/*================================= Update Arg Pipeline =============================*/
+				
+				_SN_Rec_Kernel = _SNN_Rec_Kernel;_LN_Rec_Kernel = _LNN_Rec_Kernel;
+				/*============================= End Update Arg Pipeline =============================*/
+			} /* End iteration on Tile0 */
+			/*====================== Call Kernel LOC_LOOP_EPILOG =========================*/
+			KerArg1->Z = (short int * __restrict__) (L1_Memory+10612+1000*((T2Ind_Total)%2));
+			KerArg1->H_0 = (short int * __restrict__) (L1_Memory+112+500*((T2Ind_Total)%3));
+			KerArg1->prod1 = (short int * __restrict__) (L1_Memory+12612+500*((T2Ind_Total)%2));
+			KerArg1->prod2 = (int * __restrict__) (L1_Memory+13612+1000*((T2Ind_Total)%2));
+			AT_FORK(gap_ncore(), (void *) KerProd16, (void *) KerArg1);
+			__CALL(KerProd16, KerArg1);
+
+			for (T1Ind=0; T1Ind<18; T1Ind++, T1Ind_Total++) { /* Iteration on Tile1 */
+			int T1Ind_Last = (T1Ind==17), T1Ind_NextLast = ((T1Ind+1)==17), T1Ind_NextNextLast = ((T1Ind+2)==17);
+			/*================================= Prepare Tiles ===================================*/
+			_SNN_Rec_Kernel2 = 0;
+			if (!(T1Ind_Last)) {
+				if (!(T1Ind_NextLast)) {
+					_NN_Rec_Kernel2 = _NN_Rec_Kernel2 + (28); _LNN_Rec_Kernel2 = ((T1Ind_NextNextLast)?24:28); _SNN_Rec_Kernel2 = (250*_LNN_Rec_Kernel2); 
+				} else {
+					_NN_Rec_Kernel2 = _NN_Rec_Kernel2 + (-476); _LNN_Rec_Kernel2 = (28); _SNN_Rec_Kernel2 = (250*_LNN_Rec_Kernel2); 
+				}
+			} else {
+				_NN_Rec_Kernel2 = _NN_Rec_Kernel2 + (28); _LNN_Rec_Kernel2 = (28); _SNN_Rec_Kernel2 = (250*_LNN_Rec_Kernel2); 
+			}
+			/*============================= End Prepare Tiles ===================================*/
+			/*================================= Read Tiles ======================================*/
+			AT_HYPERRAM_CL_WAIT(&HyperRam, &Uchan2); /* Wait previous uDMA read Rec_Kernel2 */
+			if (_SNN_Rec_Kernel2) {
+				AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel2+_NN_Rec_Kernel2), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+14000+7000*((T1Ind_Total)%2)),
+						_SNN_Rec_Kernel2, 500, _LNN_Rec_Kernel2, 0, &Uchan2);
+			}
+			AT_L2_WAIT(0, &DmaR_Evt6); /* Wait previous DMA read Rec_Kernel2 */
+			if (_SN_Rec_Kernel2) {
+				AT_L2_COPY(0, ((AT_HYPERRAM_EXT_ADDR_TYPE) L2_Memory+14000+7000*((T1Ind_Total+1)%2)), ((AT_L2_INT_ADDR_TYPE) L1_Memory+15612+7000*((T1Ind_Total+1)%2)),
+						_SN_Rec_Kernel2, 0, &DmaR_Evt6);
+			}	
+			KerArg2->Z = (short int * __restrict__) (L1_Memory+10612+1000*((T2Ind_Total)%2));
+			KerArg2->In = (short int * __restrict__) (L1_Memory+0+56*((T2Ind_Total)%2));
+			KerArg2->Iterazione = (unsigned int) (Iterazione);
+			KerArg2->H_0 = (short int * __restrict__) (L1_Memory+112+500*((T2Ind_Total)%3));
+			KerArg2->Kernel = (short int * __restrict__) (L1_Memory+7612+500*((T2Ind_Total)%2));
+			KerArg2->Rec_Kernel = (short int * __restrict__) (L1_Memory+15612+7000*((T1Ind_Total)%2));
+			KerArg2->W_Rec_Kernel = (unsigned int) ((T1Ind_Last)?12:14);
+			KerArg2->Bias = (int * __restrict__) (L1_Memory+8612+1000*((T2Ind_Total)%2));
+			KerArg2->prod1 = (short int * __restrict__) (L1_Memory+12612+500*((T2Ind_Total)%2));
+			KerArg2->prod2 = (int * __restrict__) (L1_Memory+13612+1000*((T2Ind_Total)%2));
+			KerArg2->OutFirstCol = (unsigned int) ((T1Ind)*14);
+			AT_FORK(gap_ncore(), (void *) KerGRUEnclayer16, (void *) KerArg2);
+			__CALL(KerGRUEnclayer16, KerArg2);
+			/*================================= Update Arg Pipeline =============================*/
+			
+			_SN_Rec_Kernel2 = _SNN_Rec_Kernel2;_LN_Rec_Kernel2 = _LNN_Rec_Kernel2;
+			/*============================= End Update Arg Pipeline =============================*/
+			}
+		} /* End iteration on Tile1 */
+		/*================================= Write Tiles =====================================*/
+		if (_SP_Z) AT_L2_WAIT(0, &DmaW_Evt1); /* Wait previous DMA write Z */
+		AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Z+_C_Z), ((AT_L2_INT_ADDR_TYPE) L1_Memory+10612+1000*((T2Ind_Total)%2)),
+				_SC_Z, 1, &DmaW_Evt1);
+		if (_SP_H_0) AT_L2_WAIT(0, &DmaW_Evt2); /* Wait previous DMA write H_0 */
+		AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) H_0+_C_H_0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+112+500*((T2Ind_Total)%3)),
+				_SC_H_0, 1, &DmaW_Evt2);
+		if (_SP_prod1) AT_L2_WAIT(0, &DmaW_Evt3); /* Wait previous DMA write prod1 */
+		AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) prod1+_C_prod1), ((AT_L2_INT_ADDR_TYPE) L1_Memory+12612+500*((T2Ind_Total)%2)),
+				_SC_prod1, 1, &DmaW_Evt3);
+		if (_SP_prod2) AT_L2_WAIT(0, &DmaW_Evt4); /* Wait previous DMA write prod2 */
+		AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) prod2+_C_prod2), ((AT_L2_INT_ADDR_TYPE) L1_Memory+13612+1000*((T2Ind_Total)%2)),
+				_SC_prod2, 1, &DmaW_Evt4);
+		/*============================= End Write Tiles =====================================*/
+		/*================================= Update Arg Pipeline =============================*/
+		_SP_Z = _SC_Z;
+		_SP_H_0 = _SC_H_0;
+		
+		
+		
+		
+		
+		_SP_prod1 = _SC_prod1;
+		_SP_prod2 = _SC_prod2;
+		/*============================= End Update Arg Pipeline =============================*/
+		/*================================= Prepare Tiles ===================================*/
+		_SC_Z = 0;
+		
+		_SC_H_0 = 0;
+		
+		_SC_prod1 = 0;
+		
+		_SC_prod2 = 0;
+		
+		/*============================= End Prepare Tiles ===================================*/
+		T2Ind_Total++;
+	} /* End iteration on Tile2 */
+	/*================================ Write Tiles Epilog ===============================*/
+	AT_L2_WAIT(0, &DmaW_Evt1); /* Wait previous DMA write Z */
+	AT_L2_WAIT(0, &DmaW_Evt2); /* Wait previous DMA write H_0 */
+	AT_L2_WAIT(0, &DmaW_Evt3); /* Wait previous DMA write prod1 */
+	AT_L2_WAIT(0, &DmaW_Evt4); /* Wait previous DMA write prod2 */
+	/*============================ End Write Tiles Epilog ===============================*/
+}
+void DecGRUlayer(
+		struct pi_device HyperRam,
+		unsigned int Iterazione,
+		short int * __restrict__ H_0,
+		uint32_t Rec_Kernel,
+		int * __restrict__ Bias,
+		uint32_t Rec_Kernel2,
+		int * __restrict__ Bias2,
+		short int * __restrict__ Dense_Kernel,
+		int * __restrict__ Dense_Bias,
+		short int * __restrict__ Out,
+		short int * __restrict__ Z,
+		short int * __restrict__ prod1,
+		int * __restrict__ prod2,
+		unsigned int Norm)
+
+{
+	/* Shared L1: 43548 bytes, L2 buffer: 30000 bytes */
+	/* Local variables used by this kernel */
+	AT_L2_EVENT DmaR_Evt1;
+	AT_L2_EVENT DmaR_Evt2;
+	AT_L2_EVENT DmaR_Evt3;
+	AT_L2_EVENT DmaR_Evt4;
+	AT_L2_EVENT DmaR_Evt5;
+	AT_L2_EVENT DmaR_Evt6;
+	AT_L2_EVENT DmaR_Evt7;
+	AT_L2_EVENT DmaW_Evt1;
+	AT_L2_EVENT DmaW_Evt2;
+	AT_L2_EVENT DmaW_Evt3;
+	AT_L2_EVENT DmaW_Evt4;
+	AT_L2_EVENT DmaW_Evt5;
+	AT_HYPERRAM_CL_EVENT Uchan1;
+	AT_HYPERRAM_CL_EVENT Uchan2;
+	KerZDec16_ArgT S_KerArg0, *KerArg0 = &S_KerArg0;
+	KerProd16_ArgT S_KerArg1, *KerArg1 = &S_KerArg1;
+	KerGRUDeclayer16_ArgT S_KerArg2, *KerArg2 = &S_KerArg2;
+	KerDENSElayer16_ArgT S_KerArg3, *KerArg3 = &S_KerArg3;
+
+	/* Iteration space related variables */
+	int T2Ind, T2Ind_Total=0, T2Ind_Last, T2Ind_NextLast;
+	int T1Ind, T1Ind_Total=0, T1Ind_Last, T1Ind_NextLast, T1Ind_NextNextLast;
+	int T0Ind, T0Ind_Total=0, T0Ind_Last, T0Ind_NextLast, T0Ind_NextNextLast;
+	/* User kernel arguments related variables */
+	unsigned int _C_Z;
+	unsigned int _SP_Z, _SC_Z;
+	unsigned int _NN_Rec_Kernel;
+	unsigned int _SN_Rec_Kernel, _SNN_Rec_Kernel;
+	unsigned int _LN_Rec_Kernel, _LNN_Rec_Kernel;
+	unsigned int _N_Bias;
+	unsigned int _SN_Bias;
+	unsigned int _NN_Rec_Kernel2;
+	unsigned int _SN_Rec_Kernel2, _SNN_Rec_Kernel2;
+	unsigned int _LN_Rec_Kernel2, _LNN_Rec_Kernel2;
+	unsigned int _N_Bias2;
+	unsigned int _SN_Bias2;
+	unsigned int _N_Dense_Kernel;
+	unsigned int _SN_Dense_Kernel;
+	unsigned int _N_Dense_Bias;
+	unsigned int _SN_Dense_Bias;
+	unsigned int _C_H_0, _N_H_0;
+	unsigned int _SP_H_0, _SC_H_0, _SN_H_0;
+	unsigned int _C_Out;
+	unsigned int _SP_Out, _SC_Out;
+	unsigned int _C_prod1;
+	unsigned int _SP_prod1, _SC_prod1;
+	unsigned int _C_prod2;
+	unsigned int _SP_prod2, _SC_prod2;
+	/*============================= Ker Arg Iter Spaces =========================================
+	User Kernel Iteration Space:
+		[Tile2 Dim: 1][Tile1 Dim: 17][Tile0 Dim: 34]
+	Ker Arg: Z, Tiled Space: Tile2
+		Min Pipe Depth: -1, Max Pipe Depth: 0
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 1000 [Tile2, 1:[500x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[500x1], 2]
+		Tile0: [0, 1000, 1000], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: Rec_Kernel, Tiled Space: Tile0
+		Min Pipe Depth: 0, Max Pipe Depth: 2
+		KerArgItSpace: 34 logical tiles, 34 physical tiles
+			Total Size: 250000 [Tile0, 34:[250x15, 32:250x15, 250x5], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile0, 34:[250x15, 32:250x15, 250x5], 2]
+		Tile0: [0, 7500, 30], Tile1: [30, 7500, 30], Tile2; [60, 7500, 30]
+		T0: [Tile0: 0], T1: [Tile0: 1], T2: [Tile0: 2]
+	Ker Arg: Bias, Tiled Space: Tile2
+		Min Pipe Depth: 0, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 2000 [Tile2, 1:[500x1], 4]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[500x1], 4]
+		Tile0: [0, 2000, 2000], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: Rec_Kernel2, Tiled Space: Tile1
+		Min Pipe Depth: 0, Max Pipe Depth: 2
+		KerArgItSpace: 17 logical tiles, 17 physical tiles
+			Total Size: 125000 [Tile1, 17:[250x15, 15:250x15, 250x10], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile1, 17:[250x15, 15:250x15, 250x10], 2]
+		Tile0: [0, 7500, 30], Tile1: [30, 7500, 30], Tile2; [60, 7500, 30]
+		T0: [Tile1: 0], T1: [Tile1: 1], T2: [Tile1: 2]
+	Ker Arg: Bias2, Tiled Space: Tile2
+		Min Pipe Depth: 0, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 1000 [Tile2, 1:[250x1], 4]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 4]
+		Tile0: [0, 1000, 1000], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: Dense_Kernel, Tiled Space: Tile2
+		Min Pipe Depth: 0, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 500 [Tile2, 1:[250x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 2]
+		Tile0: [0, 500, 500], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: Dense_Bias, Tiled Space: Tile2
+		Min Pipe Depth: 0, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 4 [Tile2, 1:[1x1], 4]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[1x1], 4]
+		Tile0: [0, 4, 4], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: H_0, Tiled Space: Tile2
+		Min Pipe Depth: -1, Max Pipe Depth: 1
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 500 [Tile2, 1:[250x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 2]
+		Tile0: [0, 500, 500], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: Out, Tiled Space: Tile2
+		Min Pipe Depth: -1, Max Pipe Depth: 0
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 18 [Tile2, 1:[9x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[9x1], 2]
+		Tile0: [0, 18, 18], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: prod1, Tiled Space: Tile2
+		Min Pipe Depth: -1, Max Pipe Depth: 0
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 500 [Tile2, 1:[250x1], 2]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 2]
+		Tile0: [0, 500, 500], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	Ker Arg: prod2, Tiled Space: Tile2
+		Min Pipe Depth: -1, Max Pipe Depth: 0
+		KerArgItSpace: 1 logical tiles, 1 physical tiles
+			Total Size: 1000 [Tile2, 1:[250x1], 4]
+		KerArgItSpace (User Kernel Iter Order):
+			[Tile2, 1:[250x1], 4]
+		Tile0: [0, 1000, 1000], Tile1: [0, 0, 0], Tile2; [0, 0, 0]
+		T0: [Tile2: 0], T1: [Tile2: 0], T2: [Tile2: 0]
+	======================== End Ker Arg Iter Spaces =========================================*/
+	/*=========================== Call Kernel, Invariant assignment =====================*/
+	KerArg0->W_H = (unsigned int) (250);
+	KerArg0->Norm = (unsigned int) (Norm);
+	KerArg1->W_H = (unsigned int) (250);
+	KerArg1->Norm = (unsigned int) (Norm);
+	KerArg2->W_H = (unsigned int) (250);
+	KerArg2->Norm = (unsigned int) (Norm);
+	KerArg3->InSize = (unsigned int) (250);
+	KerArg3->Norm = (unsigned int) (Norm);
+
+	/*================================= Read Tiles Prolog ===============================*/
+	_C_Z=0; _SC_Z=1000;
+	_SP_Z=0;
+	_NN_Rec_Kernel=30; _SN_Rec_Kernel=7500;
+	AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel+0), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+0+0), 7500, 1000, 30, 0, &Uchan1);
+	AT_HYPERRAM_CL_WAIT(&HyperRam, &Uchan1); /* Wait previous uDMA read Rec_Kernel */
+	AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel+30), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+0+7500), 7500, 1000, 30, 0, &Uchan1);
+	AT_L2_COPY(0, ((AT_HYPERRAM_EXT_ADDR_TYPE) L2_Memory+0+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+28548+0), 7500, 0, &DmaR_Evt1);
+	_N_Bias=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Bias+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+1500+0), 2000, 0, &DmaR_Evt2);
+	_NN_Rec_Kernel2=30; _SN_Rec_Kernel2=7500;
+	AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel2+0), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+15000+0), 7500, 500, 30, 0, &Uchan2);
+	AT_HYPERRAM_CL_WAIT(&HyperRam, &Uchan2); /* Wait previous uDMA read Rec_Kernel2 */
+	AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel2+30), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+15000+7500), 7500, 500, 30, 0, &Uchan2);
+	AT_L2_COPY(0, ((AT_HYPERRAM_EXT_ADDR_TYPE) L2_Memory+15000+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+13548+0), 7500, 0, &DmaR_Evt3);
+	_N_Bias2=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Bias2+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+5500+0), 1000, 0, &DmaR_Evt4);
+	_N_Dense_Kernel=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Dense_Kernel+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+7500+0), 500, 0, &DmaR_Evt5);
+	_N_Dense_Bias=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Dense_Bias+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+8500+0), 4, 0, &DmaR_Evt6);
+	_C_H_0=0; _SC_H_0=500;
+	_SP_H_0=0;
+	_N_H_0=0;
+	AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) H_0+0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+0+0), 500, 0, &DmaR_Evt7);
+	_C_Out=0; _SC_Out=18;
+	_SP_Out=0;
+	_C_prod1=0; _SC_prod1=500;
+	_SP_prod1=0;
+	_C_prod2=0; _SC_prod2=1000;
+	_SP_prod2=0;
+	/*============================= End Read Tiles Prolog ===============================*/
+	{ /* Single iteration on Tile2 */
+		int T2Ind_Last = 1, T2Ind_NextLast = 1;
+		/*================================= Prepare Tiles ===================================*/
+		_SN_Bias = 0;
+		
+		_SN_Bias2 = 0;
+		
+		_SN_Dense_Kernel = 0;
+		
+		_SN_Dense_Bias = 0;
+		
+		_SN_H_0 = 0;
+		
+		/*============================= End Prepare Tiles ===================================*/
+		/*================================= Read Tiles ======================================*/
+		AT_L2_WAIT(0, &DmaR_Evt2); /* Wait previous DMA read Bias */
+		if (_SN_Bias) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Bias+_N_Bias), ((AT_L2_INT_ADDR_TYPE) L1_Memory+1500+2000*((T2Ind_Total+1)%2)),
+					_SN_Bias, 0, &DmaR_Evt2);
+		}
+		AT_L2_WAIT(0, &DmaR_Evt4); /* Wait previous DMA read Bias2 */
+		if (_SN_Bias2) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Bias2+_N_Bias2), ((AT_L2_INT_ADDR_TYPE) L1_Memory+5500+1000*((T2Ind_Total+1)%2)),
+					_SN_Bias2, 0, &DmaR_Evt4);
+		}
+		AT_L2_WAIT(0, &DmaR_Evt5); /* Wait previous DMA read Dense_Kernel */
+		if (_SN_Dense_Kernel) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Dense_Kernel+_N_Dense_Kernel), ((AT_L2_INT_ADDR_TYPE) L1_Memory+7500+500*((T2Ind_Total+1)%2)),
+					_SN_Dense_Kernel, 0, &DmaR_Evt5);
+		}
+		AT_L2_WAIT(0, &DmaR_Evt6); /* Wait previous DMA read Dense_Bias */
+		if (_SN_Dense_Bias) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Dense_Bias+_N_Dense_Bias), ((AT_L2_INT_ADDR_TYPE) L1_Memory+8500+4*((T2Ind_Total+1)%2)),
+					_SN_Dense_Bias, 0, &DmaR_Evt6);
+		}
+		AT_L2_WAIT(0, &DmaR_Evt7); /* Wait previous DMA read H_0 */
+		if (_SN_H_0) {
+			AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) H_0+_N_H_0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+0+500*((T2Ind_Total+1)%3)),
+					_SN_H_0, 0, &DmaR_Evt7);
+		}
+		/*============================= End Read Tiles ======================================*/
+
+			/*============================= End Read Tiles ======================================*/
+		for(Iterazione=0;Iterazione<9;Iterazione++){	
+			for (T0Ind=0; T0Ind<34; T0Ind++, T0Ind_Total++) { /* Iteration on Tile0 */
+				int T0Ind_Last = (T0Ind==33), T0Ind_NextLast = ((T0Ind+1)==33), T0Ind_NextNextLast = ((T0Ind+2)==33);
+				/*================================= Prepare Tiles ===================================*/
+				_SNN_Rec_Kernel = 0;
+				if (!(T0Ind_Last)) {
+					if (!(T0Ind_NextLast)) {
+						_NN_Rec_Kernel = _NN_Rec_Kernel + (30); _LNN_Rec_Kernel = ((T0Ind_NextNextLast)?10:30); _SNN_Rec_Kernel = (250*_LNN_Rec_Kernel); 
+					} else {
+						_NN_Rec_Kernel = _NN_Rec_Kernel + (-990); _LNN_Rec_Kernel = (30); _SNN_Rec_Kernel = (250*_LNN_Rec_Kernel); 
+					}
+				} else {
+					_NN_Rec_Kernel = _NN_Rec_Kernel + (30); _LNN_Rec_Kernel = (30); _SNN_Rec_Kernel = (250*_LNN_Rec_Kernel); 
+				}
+				/*============================= End Prepare Tiles ===================================*/
+				/*================================= Read Tiles ======================================*/
+				AT_HYPERRAM_CL_WAIT(&HyperRam, &Uchan1); /* Wait previous uDMA read Rec_Kernel */
+				if (_SNN_Rec_Kernel) {
+					AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel+_NN_Rec_Kernel), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+0+7500*((T0Ind_Total)%2)),
+							_SNN_Rec_Kernel, 1000, _LNN_Rec_Kernel, 0, &Uchan1);
+				}
+				AT_L2_WAIT(0, &DmaR_Evt1); /* Wait previous DMA read Rec_Kernel */
+				if (_SN_Rec_Kernel) {
+					AT_L2_COPY(0, ((AT_HYPERRAM_EXT_ADDR_TYPE) L2_Memory+0+7500*((T0Ind_Total+1)%2)), ((AT_L2_INT_ADDR_TYPE) L1_Memory+28548+7500*((T0Ind_Total+1)%2)),
+							_SN_Rec_Kernel, 0, &DmaR_Evt1);
+				}
+				/*============================= End Read Tiles ======================================*/
+				/*====================== Call Kernel LOC_LOOP =========================*/
+				KerArg0->H_0 = (short int * __restrict__) (L1_Memory+0+500*((T2Ind_Total)%3));
+				KerArg0->Rec_Kernel = (short int * __restrict__) (L1_Memory+28548+7500*((T0Ind_Total)%2));
+				KerArg0->W_Rec_Kernel = (unsigned int) ((T0Ind_Last)?5:15);
+				KerArg0->Bias = (int * __restrict__) (L1_Memory+1500+2000*((T2Ind_Total)%2));
+				KerArg0->Z = (short int * __restrict__) (L1_Memory+8508+1000*((T2Ind_Total)%2));
+				KerArg0->OutFirstCol = (unsigned int) ((T0Ind)*15);
+				AT_FORK(gap_ncore(), (void *) KerZDec16, (void *) KerArg0);
+				__CALL(KerZDec16, KerArg0);
+				/*================================= Update Arg Pipeline =============================*/
+				
+				_SN_Rec_Kernel = _SNN_Rec_Kernel;_LN_Rec_Kernel = _LNN_Rec_Kernel;
+				/*============================= End Update Arg Pipeline =============================*/
+			} /* End iteration on Tile0 */
+			/*====================== Call Kernel LOC_LOOP_EPILOG =========================*/
+			KerArg1->Z = (short int * __restrict__) (L1_Memory+8508+1000*((T2Ind_Total)%2));
+			KerArg1->H_0 = (short int * __restrict__) (L1_Memory+0+500*((T2Ind_Total)%3));
+			KerArg1->prod1 = (short int * __restrict__) (L1_Memory+10548+500*((T2Ind_Total)%2));
+			KerArg1->prod2 = (int * __restrict__) (L1_Memory+11548+1000*((T2Ind_Total)%2));
+			AT_FORK(gap_ncore(), (void *) KerProd16, (void *) KerArg1);
+			__CALL(KerProd16, KerArg1);
+
+			for (T1Ind=0; T1Ind<17; T1Ind++, T1Ind_Total++) { /* Iteration on Tile1 */
+			int T1Ind_Last = (T1Ind==16), T1Ind_NextLast = ((T1Ind+1)==16), T1Ind_NextNextLast = ((T1Ind+2)==16);
+			/*================================= Prepare Tiles ===================================*/
+			_SNN_Rec_Kernel2 = 0;
+			if (!(T1Ind_Last)) {
+				if (!(T1Ind_NextLast)) {
+					_NN_Rec_Kernel2 = _NN_Rec_Kernel2 + (30); _LNN_Rec_Kernel2 = ((T1Ind_NextNextLast)?20:30); _SNN_Rec_Kernel2 = (250*_LNN_Rec_Kernel2); 
+				} else {
+					_NN_Rec_Kernel2 = _NN_Rec_Kernel2 + (-480); _LNN_Rec_Kernel2 = (30); _SNN_Rec_Kernel2 = (250*_LNN_Rec_Kernel2); 
+				}
+			} else {
+				_NN_Rec_Kernel2 = _NN_Rec_Kernel2 + (30); _LNN_Rec_Kernel2 = (30); _SNN_Rec_Kernel2 = (250*_LNN_Rec_Kernel2); 
+			}
+			/*============================= End Prepare Tiles ===================================*/
+			/*================================= Read Tiles ======================================*/
+			AT_HYPERRAM_CL_WAIT(&HyperRam, &Uchan2); /* Wait previous uDMA read Rec_Kernel2 */
+			if (_SNN_Rec_Kernel2) {
+				AT_HYPERRAM_CL_COPY2D(&HyperRam, ((AT_HYPERRAM_EXT_ADDR_TYPE) Rec_Kernel2+_NN_Rec_Kernel2), ((AT_HYPERRAM_INT_ADDR_TYPE) L2_Memory+15000+7500*((T1Ind_Total)%2)),
+						_SNN_Rec_Kernel2, 500, _LNN_Rec_Kernel2, 0, &Uchan2);
+			}
+			AT_L2_WAIT(0, &DmaR_Evt3); /* Wait previous DMA read Rec_Kernel2 */
+			if (_SN_Rec_Kernel2) {
+				AT_L2_COPY(0, ((AT_HYPERRAM_EXT_ADDR_TYPE) L2_Memory+15000+7500*((T1Ind_Total+1)%2)), ((AT_L2_INT_ADDR_TYPE) L1_Memory+13548+7500*((T1Ind_Total+1)%2)),
+						_SN_Rec_Kernel2, 0, &DmaR_Evt3);
+			}		
+			KerArg2->Z = (short int * __restrict__) (L1_Memory+8508+1000*((T2Ind_Total)%2));
+			KerArg2->H_0 = (short int * __restrict__) (L1_Memory+0+500*((T2Ind_Total)%3));
+			KerArg2->Rec_Kernel = (short int * __restrict__) (L1_Memory+13548+7500*((T1Ind_Total)%2));
+			KerArg2->W_Rec_Kernel = (unsigned int) ((T1Ind_Last)?10:15);
+			KerArg2->Bias = (int * __restrict__) (L1_Memory+5500+1000*((T2Ind_Total)%2));
+			KerArg2->prod1 = (short int * __restrict__) (L1_Memory+10548+500*((T2Ind_Total)%2));
+			KerArg2->prod2 = (int * __restrict__) (L1_Memory+11548+1000*((T2Ind_Total)%2));
+			KerArg2->OutFirstCol = (unsigned int) ((T1Ind)*15);
+			AT_FORK(gap_ncore(), (void *) KerGRUDeclayer16, (void *) KerArg2);
+			__CALL(KerGRUDeclayer16, KerArg2);
+			}
+			KerArg3->In = (short int * __restrict__) (L1_Memory+0+500*((T2Ind_Total)%3));
+			KerArg3->Iterazione = (unsigned int) (Iterazione);
+			KerArg3->Filter = (short int * __restrict__) (L1_Memory+7500+500*((T2Ind_Total)%2));
+			KerArg3->Bias = (int * __restrict__) (L1_Memory+8500+4*((T2Ind_Total)%2));
+			KerArg3->Out = (short int * __restrict__) (L1_Memory+10508+20*((T2Ind_Total)%2));
+			AT_FORK(gap_ncore(), (void *) KerDENSElayer16, (void *) KerArg3);
+			__CALL(KerDENSElayer16, KerArg3);
+			/*================================= Update Arg Pipeline =============================*/
+			
+			_SN_Rec_Kernel2 = _SNN_Rec_Kernel2;_LN_Rec_Kernel2 = _LNN_Rec_Kernel2;
+			/*============================= End Update Arg Pipeline =============================*/
+		}/* End iteration on Tile1 */
+		/*================================= Write Tiles =====================================*/
+		if (_SP_Z) AT_L2_WAIT(0, &DmaW_Evt1); /* Wait previous DMA write Z */
+		AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Z+_C_Z), ((AT_L2_INT_ADDR_TYPE) L1_Memory+8508+1000*((T2Ind_Total)%2)),
+				_SC_Z, 1, &DmaW_Evt1);
+		if (_SP_H_0) AT_L2_WAIT(0, &DmaW_Evt2); /* Wait previous DMA write H_0 */
+		AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) H_0+_C_H_0), ((AT_L2_INT_ADDR_TYPE) L1_Memory+0+500*((T2Ind_Total)%3)),
+				_SC_H_0, 1, &DmaW_Evt2);
+		if (_SP_Out) AT_L2_WAIT(0, &DmaW_Evt3); /* Wait previous DMA write Out */
+		AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) Out+_C_Out), ((AT_L2_INT_ADDR_TYPE) L1_Memory+10508+20*((T2Ind_Total)%2)),
+				_SC_Out, 1, &DmaW_Evt3);
+		if (_SP_prod1) AT_L2_WAIT(0, &DmaW_Evt4); /* Wait previous DMA write prod1 */
+		AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) prod1+_C_prod1), ((AT_L2_INT_ADDR_TYPE) L1_Memory+10548+500*((T2Ind_Total)%2)),
+				_SC_prod1, 1, &DmaW_Evt4);
+		if (_SP_prod2) AT_L2_WAIT(0, &DmaW_Evt5); /* Wait previous DMA write prod2 */
+		AT_L2_COPY(0, ((AT_L2_EXT_ADDR_TYPE) prod2+_C_prod2), ((AT_L2_INT_ADDR_TYPE) L1_Memory+11548+1000*((T2Ind_Total)%2)),
+				_SC_prod2, 1, &DmaW_Evt5);
+		/*============================= End Write Tiles =====================================*/
+		/*================================= Update Arg Pipeline =============================*/
+		_SP_Z = _SC_Z;
+		
+		
+		
+		
+		_SP_H_0 = _SC_H_0;
+		_SP_Out = _SC_Out;
+		_SP_prod1 = _SC_prod1;
+		_SP_prod2 = _SC_prod2;
+		/*============================= End Update Arg Pipeline =============================*/
+		/*================================= Prepare Tiles ===================================*/
+		_SC_Z = 0;
+		
+		_SC_H_0 = 0;
+		
+		_SC_Out = 0;
+		
+		_SC_prod1 = 0;
+		
+		_SC_prod2 = 0;
+		
+		/*============================= End Prepare Tiles ===================================*/
+		T2Ind_Total++;
+	} /* End iteration on Tile2 */
+	/*================================ Write Tiles Epilog ===============================*/
+	AT_L2_WAIT(0, &DmaW_Evt1); /* Wait previous DMA write Z */
+	AT_L2_WAIT(0, &DmaW_Evt2); /* Wait previous DMA write H_0 */
+	AT_L2_WAIT(0, &DmaW_Evt3); /* Wait previous DMA write Out */
+	AT_L2_WAIT(0, &DmaW_Evt4); /* Wait previous DMA write prod1 */
+	AT_L2_WAIT(0, &DmaW_Evt5); /* Wait previous DMA write prod2 */
+	/*============================ End Write Tiles Epilog ===============================*/
+}
