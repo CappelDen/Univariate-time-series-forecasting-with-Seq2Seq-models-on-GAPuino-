@@ -22,7 +22,7 @@
 
 void LoadEncoderDecoderLibrary()
 {
-    LibKernel("KerZEnc16",CALL_SEQUENTIAL,
+    LibKernel("KerZEnc16",CALL_PARALLEL,
         CArgs(11,
             TCArg("short int * __restrict__", "In"),
             TCArg("unsigned int","Iterazione"),
@@ -39,7 +39,7 @@ void LoadEncoderDecoderLibrary()
         "KerZEnc16_ArgT",0
     );
 
-    LibKernel("KerZDec16",CALL_SEQUENTIAL,
+    LibKernel("KerZDec16",CALL_PARALLEL,
         CArgs(8,
             TCArg("short int * __restrict__", "H_0"),
             TCArg("unsigned int", "W_H"),
@@ -53,7 +53,7 @@ void LoadEncoderDecoderLibrary()
         "KerZDec16_ArgT",0
     );
 
-    LibKernel("KerProd16",CALL_SEQUENTIAL,
+    LibKernel("KerProd16",CALL_PARALLEL,
         CArgs(6,
             TCArg("short int * __restrict__", "Z"),
             TCArg("short int * __restrict__", "H_0"),
@@ -64,7 +64,7 @@ void LoadEncoderDecoderLibrary()
         ),
         "KerProd16_ArgT",0
     );
-    LibKernel("KerGRUEnclayer16",CALL_SEQUENTIAL,
+    LibKernel("KerGRUEnclayer16",CALL_PARALLEL,
         CArgs(13,
             TCArg("short int * __restrict__", "Z"),
             TCArg("short int * __restrict__", "In"),
@@ -83,7 +83,7 @@ void LoadEncoderDecoderLibrary()
         "KerGRUEnclayer16_ArgT",0
     );
 
-    LibKernel("KerGRUDeclayer16",CALL_SEQUENTIAL,
+    LibKernel("KerGRUDeclayer16",CALL_PARALLEL,
         CArgs(10,
             TCArg("short int * __restrict__", "Z"),
             TCArg("short int * __restrict__", "H_0"),
@@ -99,7 +99,7 @@ void LoadEncoderDecoderLibrary()
         "KerGRUDeclayer16_ArgT",0
     );
 
-    LibKernel("KerDENSElayer16",CALL_SEQUENTIAL,
+    LibKernel("KerDENSElayer16",CALL_PARALLEL,
         CArgs(7,
             TCArg("short int * __restrict__", "In"),
             TCArg("unsigned int", "InSize"),

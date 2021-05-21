@@ -22,7 +22,7 @@
 
 void LoadEncoderDecoderLibrary()
 {
-    LibKernel("KerZEnc16",CALL_SEQUENTIAL,
+    LibKernel("KerZEnc16",CALL_PARALLEL,
         CArgs(11,
             TCArg("short int * __restrict__", "In"),
             TCArg("unsigned int","Iterazione"),
@@ -39,7 +39,7 @@ void LoadEncoderDecoderLibrary()
         "KerZEnc16_ArgT",0
     );
 
-    LibKernel("KerZDec16",CALL_SEQUENTIAL,
+    LibKernel("KerZDec16",CALL_PARALLEL,
         CArgs(8,
             TCArg("short int * __restrict__", "H_0"),
             TCArg("unsigned int", "W_H"),
@@ -53,7 +53,7 @@ void LoadEncoderDecoderLibrary()
         "KerZDec16_ArgT",0
     );
 
-    LibKernel("KerProd16",CALL_SEQUENTIAL,
+    LibKernel("KerProd16",CALL_PARALLEL,
         CArgs(6,
             TCArg("short int * __restrict__", "Z"),
             TCArg("short int * __restrict__", "H_0"),
@@ -64,7 +64,7 @@ void LoadEncoderDecoderLibrary()
         ),
         "KerProd16_ArgT",0
     );
-    LibKernel("KerGRUEnclayer16",CALL_SEQUENTIAL,
+    LibKernel("KerGRUEnclayer16",CALL_PARALLEL,
         CArgs(13,
             TCArg("short int * __restrict__", "Z"),
             TCArg("short int * __restrict__", "In"),
@@ -83,7 +83,7 @@ void LoadEncoderDecoderLibrary()
         "KerGRUEnclayer16_ArgT",0
     );
 
-    LibKernel("KerGRUDeclayer16",CALL_SEQUENTIAL,
+    LibKernel("KerGRUDeclayer16",CALL_PARALLEL,
         CArgs(10,
             TCArg("short int * __restrict__", "Z"),
             TCArg("short int * __restrict__", "H_0"),
@@ -99,7 +99,7 @@ void LoadEncoderDecoderLibrary()
         "KerGRUDeclayer16_ArgT",0
     );
 
-    LibKernel("KerDENSElayer16",CALL_SEQUENTIAL,
+    LibKernel("KerDENSElayer16",CALL_PARALLEL,
         CArgs(7,
             TCArg("short int * __restrict__", "In"),
             TCArg("unsigned int", "InSize"),
@@ -132,7 +132,7 @@ void EncoderGRUGenerator(char *Name, unsigned int Neuroni, unsigned int in_step)
     NeedNorm = 1;
 
     UserKernel(Name,
-        KernelIterSpace(3,IterTiledSpace(T2), IterTiledSpace(T1), IterTiledSpace(T0)),
+        KernelIterSpace(2,IterTiledSpace(T1), IterTiledSpace(T0)),
                 TILE_HOR,
                 CArgs(13,
                         TCArg(DataType, "In"),
@@ -186,17 +186,17 @@ void EncoderGRUGenerator(char *Name, unsigned int Neuroni, unsigned int in_step)
             )
         ),
         KerArgs(11,
-            KerArg("In",KerArgSpace(1,T2), O_IN|O_DB,  in_step, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "In"),
-            KerArg("H_0", KerArgSpace(1, T2),   O_IN|O_OUT|O_DB,  Neuroni, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "H_0"),
-            KerArg("Kernel", KerArgSpace(1, T2),  O_IN|O_DB,  W, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Kernel"),
+            KerArg("In",KerArgSpace(1,T1), O_IN|O_DB,  in_step, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "In"),
+            KerArg("H_0", KerArgSpace(1, T1),   O_IN|O_OUT|O_DB,  Neuroni, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "H_0"),
+            KerArg("Kernel", KerArgSpace(1, T1),  O_IN|O_DB,  W, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Kernel"),
             KerArg("Rec_Kernel", KerArgSpace(1, T0),  O_IN|O_DB, W, Neuroni, DataSize, 0, OBJ_CONSTRAINTS_TILE_VER|OBJ_CONSTRAINTS_PAD_REM, 0, "Rec_Kernel"),
-            KerArg("Bias", KerArgSpace(1, T2),  O_IN|O_DB,  W, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Bias"),
-            KerArg("Kernel2", KerArgSpace(1, T2),  O_IN|O_DB,  Neuroni, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Kernel2"),
-            KerArg("Rec_Kernel2", KerArgSpace(1, T1),  O_IN|O_DB, Neuroni, Neuroni, DataSize, 0, OBJ_CONSTRAINTS_TILE_VER|OBJ_CONSTRAINTS_PAD_REM, 0, "Rec_Kernel2"),
-            KerArg("Bias2", KerArgSpace(1, T2),  O_IN|O_DB,  Neuroni, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Bias2"),
-            KerArg("Z",KerArgSpace(1, T2),  O_OUT|O_DB, W,  1,  DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Z"),
-            KerArg("prod1",KerArgSpace(1, T2),  O_OUT|O_DB, Neuroni,  1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "prod1"),
-            KerArg("prod2",KerArgSpace(1, T2),  O_OUT|O_DB, Neuroni,  1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "prod2")
+            KerArg("Bias", KerArgSpace(1, T1),  O_IN|O_DB,  W, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Bias"),
+            KerArg("Kernel2", KerArgSpace(1, T1),  O_IN|O_DB,  Neuroni, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Kernel2"),
+            KerArg("Rec_Kernel2", KerArgSpace(1, T1), OBJ_BUFFER_IN_NTILED, Neuroni, Neuroni, DataSize, 0,OBJ_CONSTRAINTS_TILE_VER|OBJ_CONSTRAINTS_PAD_REM, 0, "Rec_Kernel2"),
+            KerArg("Bias2", KerArgSpace(1, T1),  O_IN|O_DB,  Neuroni, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Bias2"),
+            KerArg("Z",KerArgSpace(1, T1),  O_OUT|O_DB, W,  1,  DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Z"),
+            KerArg("prod1",KerArgSpace(1, T1),  O_OUT|O_DB, Neuroni,  1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "prod1"),
+            KerArg("prod2",KerArgSpace(1, T1),  O_OUT|O_DB, Neuroni,  1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "prod2")
         )
     );
 }
@@ -219,7 +219,7 @@ void DecoderGRUGenerator(char *Name, unsigned int Neuroni, unsigned int out_step
     NeedNorm = 1;
 
     UserKernel(Name,
-        KernelIterSpace(3,IterTiledSpace(T2), IterTiledSpace(T1), IterTiledSpace(T0)),
+        KernelIterSpace(2,IterTiledSpace(T1), IterTiledSpace(T0)),
                 TILE_HOR,
                 CArgs(13,
                         TCArg("unsigned int", "Iterazione"),
@@ -277,17 +277,17 @@ void DecoderGRUGenerator(char *Name, unsigned int Neuroni, unsigned int out_step
             )
         ),
         KerArgs(11,
-            KerArg("H_0", KerArgSpace(1, T2),   O_IN|O_OUT|O_DB,  Neuroni, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "H_0"),
+            KerArg("H_0", KerArgSpace(1, T1),   O_IN|O_OUT|O_DB,  Neuroni, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "H_0"),
             KerArg("Rec_Kernel", KerArgSpace(1, T0),  O_IN|O_DB, W, Neuroni, DataSize, 0, OBJ_CONSTRAINTS_TILE_VER|OBJ_CONSTRAINTS_PAD_REM, 0, "Rec_Kernel"),
-            KerArg("Bias", KerArgSpace(1, T2),  O_IN|O_DB,  W, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Bias"),
-            KerArg("Rec_Kernel2", KerArgSpace(1, T1),  O_IN|O_DB, Neuroni, Neuroni, DataSize, 0, OBJ_CONSTRAINTS_TILE_VER|OBJ_CONSTRAINTS_PAD_REM, 0, "Rec_Kernel2"),
-            KerArg("Bias2", KerArgSpace(1, T2),  O_IN|O_DB,  Neuroni, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Bias2"),
-            KerArg("Dense_Kernel", KerArgSpace(1, T2),  O_IN|O_DB,  Neuroni, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Dense_Kernel"),
-            KerArg("Dense_Bias", KerArgSpace(1, T2),  O_IN|O_DB,  1, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Dense_Bias"),
-            KerArg("Z",KerArgSpace(1, T2),  O_OUT|O_DB, W,  1,  DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Z"),
-            KerArg("Out",KerArgSpace(1, T2),  O_OUT|O_DB, out_step,  1,  DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Out"),
-            KerArg("prod1",KerArgSpace(1, T2),  O_OUT|O_DB, Neuroni,  1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "prod1"),
-            KerArg("prod2",KerArgSpace(1, T2),  O_OUT|O_DB, Neuroni,  1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "prod2")
+            KerArg("Bias", KerArgSpace(1, T1),  O_IN|O_DB,  W, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Bias"),
+            KerArg("Rec_Kernel2", KerArgSpace(1, T1), OBJ_BUFFER_IN_NTILED , Neuroni, Neuroni, DataSize, 0, OBJ_CONSTRAINTS_TILE_VER|OBJ_CONSTRAINTS_PAD_REM, 0, "Rec_Kernel2"),
+            KerArg("Bias2", KerArgSpace(1, T1),  O_IN|O_DB,  Neuroni, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Bias2"),
+            KerArg("Dense_Kernel", KerArgSpace(1, T1),  O_IN|O_DB,  Neuroni, 1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Dense_Kernel"),
+            KerArg("Dense_Bias", KerArgSpace(1, T1),  O_IN|O_DB,  1, 1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Dense_Bias"),
+            KerArg("Z",KerArgSpace(1, T1),  O_OUT|O_DB, W,  1,  DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Z"),
+            KerArg("Out",KerArgSpace(1, T1),  O_OUT|O_DB, out_step,  1,  DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "Out"),
+            KerArg("prod1",KerArgSpace(1, T1),  O_OUT|O_DB, Neuroni,  1, DataSize, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "prod1"),
+            KerArg("prod2",KerArgSpace(1, T1),  O_OUT|O_DB, Neuroni,  1, DataSize*2, 0, OBJ_CONSTRAINTS_PAD_REM,                          0, "prod2")
         )
     );
 }

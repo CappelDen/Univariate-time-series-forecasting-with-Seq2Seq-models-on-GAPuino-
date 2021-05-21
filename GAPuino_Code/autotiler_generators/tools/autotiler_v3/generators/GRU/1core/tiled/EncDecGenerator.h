@@ -10,6 +10,8 @@
 #ifndef __ENCDECGEN_H__
 #define __ENCDECGEN_H__
 extern void LoadEncoderDecoderLibrary();
-extern void EncoderGenerator(char *Name, unsigned int Neuroni,unsigned int in_step);
-extern void DecoderGenerator(char *Name, unsigned int Neuroni,unsigned int out_step);
+extern void EncoderZGenerator(char *Name, unsigned int Neuroni, unsigned int in_step);
+extern void EncoderGRUGenerator(char *Name, unsigned int Neuroni, unsigned int in_step);
+extern void DecoderZGenerator(char *Name, unsigned int Neuroni, unsigned int out_step);
+extern void DecoderGRUGenerator(char *Name, unsigned int Neuroni, unsigned int out_step);
 #endif

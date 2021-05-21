@@ -12,38 +12,67 @@
 #include "Gap.h"
 
 typedef struct {
+    short int * __restrict__ In;//16,12
+	unsigned int Iterazione;
+    short int * __restrict__ H_0; //16,12
+    unsigned int W_H; //neuroni
+    short int * __restrict__ Kernel;//16,12
+    short int * __restrict__ Rec_Kernel;//16,12
+    unsigned int W_Rec_Kernel;  //4*neuroni  
+    int * __restrict__ Bias;//32,24
+    short int * __restrict__ Z;//16,12
+    unsigned int OutFirstCol;
+    unsigned int Norm;
+} KerZEnc16_ArgT;
+
+typedef struct {
+    short int * __restrict__ H_0; //16,12
+    unsigned int W_H; //neuroni
+    short int * __restrict__ Rec_Kernel;//16,12
+    unsigned int W_Rec_Kernel;  //4*neuroni  
+    int * __restrict__ Bias;//32,24
+    short int * __restrict__ Z;//16,12
+    unsigned int OutFirstCol;
+    unsigned int Norm;
+} KerZDec16_ArgT;
+
+typedef struct {
+    short int * __restrict__ Z;
+    short int * __restrict__ H_0; //16,12
+    unsigned int W_H; //neuroni
+	short int * __restrict__ prod1;
+	int * __restrict__ prod2;
+    unsigned int Norm;
+} KerProd16_ArgT;
+
+typedef struct {
+	short int *__restrict__ Z;
     short int * __restrict__ In;
 	unsigned int Iterazione;
-    short int * __restrict__ H_0; 
-    unsigned int W_H; //neuroni
-    short int * __restrict__ Kernel;
-    short int * __restrict__ Rec_Kernel;
-    unsigned int W_Rec_Kernel;  //4*neuroni  
-    int * __restrict__ Bias;
-    short int * __restrict__ Z;
-    unsigned int OutFirstCol;
-    unsigned int Norm;
-} KerZComputation16_ArgT;
-
-typedef struct {
-    short int * __restrict__ H_0; 
-    unsigned int W_H; //neuroni
-    short int * __restrict__ Kernel;
-    short int * __restrict__ Rec_Kernel;
-    unsigned int W_Rec_Kernel;  //4*neuroni  
-    int * __restrict__ Bias;
-    short int * __restrict__ Z;
-    unsigned int OutFirstCol;
-    unsigned int Norm;
-} KerZComputationDec16_ArgT;
-
-typedef struct {
-	short int *__restrict__ Z ;
-    short int * __restrict__ C_0;
-    unsigned int W_C; 
     short int * __restrict__ H_0;
-    unsigned int Norm;
-} KerLSTMlayer16_ArgT;
+	unsigned int W_H;//neuroni
+	short int * __restrict__ Kernel;
+    short int * __restrict__ Rec_Kernel;
+    unsigned int W_Rec_Kernel;  //4*neuroni  
+    int * __restrict__ Bias;
+	short int * __restrict__ prod1;
+	int * __restrict__ prod2;
+	unsigned int OutFirstCol;
+	unsigned int Norm;
+} KerGRUEnclayer16_ArgT;
+
+typedef struct {
+	short int *__restrict__ Z;
+    short int * __restrict__ H_0;
+	unsigned int W_H;//neuroni
+    short int * __restrict__ Rec_Kernel;
+    unsigned int W_Rec_Kernel;  //4*neuroni  
+    int * __restrict__ Bias;
+	short int * __restrict__ prod1;
+	int * __restrict__ prod2;
+	unsigned int OutFirstCol;
+	unsigned int Norm;
+} KerGRUDeclayer16_ArgT;
 
 typedef struct {
 	short int *__restrict__ In ;
@@ -55,42 +84,72 @@ typedef struct {
     unsigned int Iterazione;
 } KerDENSElayer16_ArgT;
 
-void KerZComputation16(
+void KerZEnc16(
+    short int * __restrict__ In;//16,12
+	unsigned int Iterazione;
+    short int * __restrict__ H_0; //16,12
+    unsigned int W_H; //neuroni
+    short int * __restrict__ Kernel;//16,12
+    short int * __restrict__ Rec_Kernel;//16,12
+    unsigned int W_Rec_Kernel;  //4*neuroni  
+    int * __restrict__ Bias;//32,24
+    short int * __restrict__ Z;//16,12
+    unsigned int OutFirstCol;
+    unsigned int Norm;        
+        );
+
+void KerZDec16(
+    short int * __restrict__ H_0; //16,12
+    unsigned int W_H; //neuroni
+    short int * __restrict__ Rec_Kernel;//16,12
+    unsigned int W_Rec_Kernel;  //4*neuroni  
+    int * __restrict__ Bias;//32,24
+    short int * __restrict__ Z;//16,12
+    unsigned int OutFirstCol;
+    unsigned int Norm;
+        );
+
+void KerProd16(
+    short int * __restrict__ Z;
+    short int * __restrict__ H_0; //16,12
+    unsigned int W_H; //neuroni
+	short int * __restrict__ prod1;
+	int * __restrict__ prod2;
+    unsigned int Norm;
+        );
+
+void KerGRUEnclayer16(
+	short int *__restrict__ Z;
     short int * __restrict__ In;
 	unsigned int Iterazione;
-    short int * __restrict__ H_0; 
-    unsigned int W_H; //neuroni
-    short int * __restrict__ Kernel;
-    short int * __restrict__ Rec_Kernel;
-    unsigned int W_Rec_Kernel;  //4*neuroni  
-    int * __restrict__ Bias;
-    short int * __restrict__ Z;
-    unsigned int OutFirstCol;
-    unsigned int Norm;
-        );
-
-void KerZComputationDec16(
-    short int * __restrict__ H_0; 
-    unsigned int W_H; //neuroni
-    short int * __restrict__ Kernel;
-    short int * __restrict__ Rec_Kernel;
-    unsigned int W_Rec_Kernel;  //4*neuroni  
-    int * __restrict__ Bias;
-    short int * __restrict__ Z;
-    unsigned int OutFirstCol;
-    unsigned int Norm;
-        );
-
-void KerLSTMlayer16(
-    short int *__restrict__ Z ;
-    short int * __restrict__ C_0;
-    unsigned int W_C; 
     short int * __restrict__ H_0;
-    unsigned int Norm;
+	unsigned int W_H;//neuroni
+	short int * __restrict__ Kernel;
+    short int * __restrict__ Rec_Kernel;
+    unsigned int W_Rec_Kernel;  //4*neuroni  
+    int * __restrict__ Bias;
+	short int * __restrict__ prod1;
+	int * __restrict__ prod2;
+	unsigned int OutFirstCol;
+	unsigned int Norm;
         );
+
+void KerGRUDeclayer16(
+	short int *__restrict__ Z;
+    short int * __restrict__ H_0;
+	unsigned int W_H;//neuroni
+    short int * __restrict__ Rec_Kernel;
+    unsigned int W_Rec_Kernel;  //4*neuroni  
+    int * __restrict__ Bias;
+	short int * __restrict__ prod1;
+	int * __restrict__ prod2;
+	unsigned int OutFirstCol;
+	unsigned int Norm;
+        );
+
 
 void KerDENSElayer16(
-    short int *__restrict__ In ;
+	short int *__restrict__ In ;
     unsigned int InSize; 
     short int * __restrict__ Filter;
     int * __restrict__ Bias;

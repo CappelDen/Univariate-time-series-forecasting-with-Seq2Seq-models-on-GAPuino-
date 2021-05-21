@@ -1,34 +1,6 @@
 #include "UtilityFunc16_12.h"
 
 
-/**************************************************************************************************************************************
-	Hard Sigmoid function(ingresso(16,12)) risultato(16,12)
-**************************************************************************************************************************************/
-
-short int hard_sig(short int z, unsigned int Norm) {
-	unsigned int inv=0;
-	int i = z<<16; //(32,28)
-	int p2_5 = -671088640;//-2.5(32,28)
-	int Acc = 8388608;//0.5(32,24)
-	int p0_2 = 53687091;//0.2(32,28)
-	int p1 = 16777216; //1(32,24)
-
-	int r;	
-	if (i>0) {
-		i=-i;
-		inv=1;
-		}
-	if (i>=p2_5)
-		r = gap_machhs(Acc, p0_2, i); //32,24		
-	else
-		r = 0;
-
-	if (inv==1)
-		return r=(short int)__builtin_pulp_subN(p1, r, Norm);
-	else
-		return r=(short int) (r>>Norm);
-
-}
 
 //tangente iperbolica approssimata con funzione lineare a tratti(3 segmenti)
 int tangente_iper(int x_value){
